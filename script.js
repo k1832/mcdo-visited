@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- App State ---
     let allMcDonaldsLocations = [];
     let visitedMcDonaldsIds = new Set();
-    let markersLayer = L.layerGroup().addTo(map);
+    let markers = L.markerClusterGroup(); // Use MarkerClusterGroup
 
     // --- Icon Definitions ---
     const createIcon = (iconUrl) => {
@@ -44,7 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch(jsonStoreDataUrl);
             if (!response.ok) {
-                // Developer-facing error
                 throw new Error(`HTTP error! status: ${response.status} while fetching ${jsonStoreDataUrl}`);
             }
             const jsonData = await response.json();
@@ -55,12 +54,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 lng: store.longitude,
                 address: store.address
             }));
-            // Developer-facing console log
             console.log(`${allMcDonaldsLocations.length} stores loaded from API: ${jsonStoreDataUrl}`);
         } catch (error) {
-            // Developer-facing console error
             console.error("Could not load McDonald's store data from API:", error);
-            // User-facing alert in Japanese
             alert(`店舗データの読み込みエラー (API: ${jsonStoreDataUrl})。詳細はコンソールを確認してください。APIがダウンしているか、ネットワークに問題がある可能性があります。`);
         }
     }
@@ -85,11 +81,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderMarkers() {
-        markersLayer.clearLayers();
+        markers.clearLayers(); // Clear layers from the markerClusterGroup
         const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
 
         if (allMcDonaldsLocations.length === 0) {
-            // Developer-facing console warning
             console.warn("No McDonald's locations loaded to render. If you just started, data might still be fetching from the API.");
             return;
         }
@@ -106,7 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const lng = parseFloat(mcdo.lng);
 
             if (isNaN(lat) || isNaN(lng)) {
-                // Developer-facing console warning
                 console.warn(`Invalid coordinates for store ${mcdo.name} (ID: ${mcdo.id}): ${mcdo.lat}, ${mcdo.lng}`);
                 return;
             }
@@ -118,7 +112,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                  popupContent += `${mcdo.address}<br><br>`;
             }
 
-            // User-facing popup content in Japanese
             if (isVisited) {
                 popupContent += 'この店舗は訪問済みです！';
                 popupContent += `<br><button onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>`;
@@ -127,8 +120,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 popupContent += `<br><button onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
             }
             marker.bindPopup(popupContent);
-            markersLayer.addLayer(marker);
+            markers.addLayer(marker); // Add marker to the markerClusterGroup
         });
+        // Ensure the cluster group is added to the map.
+        // If it's already added, this won't cause issues.
+        // If it's the first render, it will add it.
+        map.addLayer(markers);
     }
 
     window.markAsVisited = function(mcdoId) {
@@ -146,14 +143,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function eraseAllData() {
-        // User-facing confirmation in Japanese
         const confirmed = window.confirm("日本の全訪問履歴を本当に消去しますか？");
         if (confirmed) {
             visitedMcDonaldsIds.clear();
             saveVisitedStores();
             renderMarkers();
             if (sideMenu) sideMenu.classList.remove('open');
-            // User-facing alert in Japanese
             alert("全ての訪問データが消去されました。");
         }
     }
@@ -184,7 +179,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initializeApp() {
         loadVisitedStores();
         await loadStoreData();
-        renderMarkers();
+        map.addLayer(markers); // Add the marker cluster group to the map
+        renderMarkers();       // Initial rendering of markers into the cluster group
         updateVisitedCount();
     }
 
