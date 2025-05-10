@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マクドナルド訪問記録 - 日本</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>マクドナルド訪問トラッカー - 日本</h1>
+            <div class="menu-container">
+                <button id="hamburgerButton" aria-label="メニューを開く">☰</button>
+                <nav id="sideMenu" class="side-menu">
+                    <ul>
+                        <li><button id="eraseDataButton">全訪問データを消去</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <div class="controls">
+            <label for="showUnvisitedCheckbox">
+                <input type="checkbox" id="showUnvisitedCheckbox" checked> 未訪問の店舗も表示
+            </label>
+        </div>
+
+        <div class="visited-counter">
+            <p>日本国内で <span id="visitedCount">0</span> 店舗のマクドナルドを訪問しました。</p>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="script.js"></script>
+</body>
+</html>
