@@ -3,12 +3,13 @@ body {
     margin: 0;
     background-color: #f4f4f4;
     color: #333;
-}
-
-.app-container {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+}
+
+.app-container {
+    flex-grow: 1;
 }
 
 header {
@@ -137,4 +138,41 @@ header h1 {
 
 .leaflet-popup-content button:hover {
     background-color: #e6b320;
+}
+
+footer {
+    text-align: center;
+    padding: 15px;
+    background-color: #f0f0f0;
+    color: #333;
+    font-size: 0.9em;
+    border-top: 1px solid #ddd;
+    width: 100%;
+    margin-top: auto;
+}
+
+footer p {
+    margin: 0;
+    display: flex; /* Use flex to align items in the paragraph */
+    justify-content: center; /* Center the content */
+    align-items: center; /* Vertically align items */
+}
+
+footer a {
+    color: #007bff; /* Standard link blue, or your preference */
+    text-decoration: none;
+    margin: 0 4px; /* Add a little space around the link */
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* Style for the SVG icon representing the X platform */
+.social-icon-platform {
+    width: 16px;  /* Adjust size as needed, slightly smaller if it's inline text */
+    height: 16px; /* Adjust size as needed */
+    fill: #555;   /* Color for the X icon, e.g., dark grey or black */
+    margin-left: 4px; /* Space between "on" and the icon */
+    vertical-align: middle; /* Helps align with text if not using flex on parent */
 }
