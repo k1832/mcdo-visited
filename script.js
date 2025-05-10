@@ -18,8 +18,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const importDataButton = document.getElementById('importDataButton');
     const importFileInput = document.getElementById('importFileInput');
 
+    const mapViewButton = document.getElementById('mapViewButton');
+    const listViewButton = document.getElementById('listViewButton');
+    const mapViewContainer = document.getElementById('mapViewContainer');
+    const storeListViewContainer = document.getElementById('storeListViewContainer');
+    const mapElement = document.getElementById('map'); // The actual map div
+
     // --- Map Initialization ---
-    const map = L.map('map').setView(initialCenter, initialZoom);
+    const map = L.map(mapElement).setView(initialCenter, initialZoom); // Initialize map on the specific div
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
@@ -27,7 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- App State ---
     let allMcDonaldsLocations = [];
     let visitedMcDonaldsIds = new Set();
-    let markers = L.markerClusterGroup(); // Use MarkerClusterGroup
+    let markers = L.markerClusterGroup();
+    let currentView = 'map'; // 'map' or 'list'
 
     // --- Icon Definitions ---
     const createIcon = (iconUrl) => {
@@ -76,13 +83,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (storedVisited) {
             visitedMcDonaldsIds = new Set(JSON.parse(storedVisited));
         }
-        updateVisitedCount();
     }
 
     function saveVisitedStores() {
         localStorage.setItem('visitedMcDonaldsIds_jp', JSON.stringify(Array.from(visitedMcDonaldsIds)));
-        updateVisitedCount();
     }
+
+    function findMarkerById(storeId) {
+        let foundMarker = null;
+        markers.eachLayer(layer => {
+            if (layer.options && String(layer.options.mcdoId) === String(storeId)) {
+                foundMarker = layer;
+            }
+        });
+        return foundMarker;
+    }
+
 
     function renderMarkers() {
         markers.clearLayers();
@@ -90,12 +106,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
         if (allMcDonaldsLocations.length === 0) {
-            console.warn("No McDonald's locations loaded to render.");
+            console.warn("No McDonald's locations loaded to render for map.");
             return;
         }
 
         let filteredLocations = allMcDonaldsLocations;
-
         if (searchTerm) {
             filteredLocations = allMcDonaldsLocations.filter(mcdo =>
                 mcdo.name.toLowerCase().includes(searchTerm) ||
@@ -104,73 +119,155 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         let markersAddedToCluster = [];
-
         filteredLocations.forEach(mcdo => {
             const isVisited = visitedMcDonaldsIds.has(mcdo.id);
-
-            if (!showUnvisited && !isVisited) {
-                return;
-            }
+            if (!showUnvisited && !isVisited) return;
 
             const markerIcon = isVisited ? visitedIcon : unvisitedIcon;
             const lat = parseFloat(mcdo.lat);
             const lng = parseFloat(mcdo.lng);
-
             if (isNaN(lat) || isNaN(lng)) {
                 console.warn(`Invalid coordinates for store ${mcdo.name} (ID: ${mcdo.id}): ${mcdo.lat}, ${mcdo.lng}`);
                 return;
             }
 
             const marker = L.marker([lat, lng], { icon: markerIcon, mcdoId: mcdo.id });
-
             let popupContent = `<b>${mcdo.name}</b><br>`;
-            if (mcdo.address) {
-                 popupContent += `${mcdo.address}<br><br>`;
-            }
-
-            if (isVisited) {
-                popupContent += 'この店舗は訪問済みです！';
-                popupContent += `<br><button onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>`;
-            } else {
-                popupContent += 'この店舗はまだ未訪問です。';
-                popupContent += `<br><button onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
-            }
+            if (mcdo.address) popupContent += `${mcdo.address}<br><br>`;
+            popupContent += isVisited ?
+                `この店舗は訪問済みです！<br><button onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>` :
+                `この店舗はまだ未訪問です。<br><button onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
             marker.bindPopup(popupContent);
             markers.addLayer(marker);
             markersAddedToCluster.push(marker);
         });
-        // Ensure the cluster group is added to the map.
-        // If it's already added, this won't cause issues.
-        // If it's the first render, it will add it.
-        map.addLayer(markers);
+
+        if (!map.hasLayer(markers)) { // Add cluster group to map if not already present
+            map.addLayer(markers);
+        }
+
 
         if (searchTerm && markersAddedToCluster.length === 1) {
-            // Only one store. Zoom into the store and open the pop-up
             const singleMarker = markersAddedToCluster[0];
-            markers.zoomToShowLayer(singleMarker, () => {
-                singleMarker.openPopup();
-            });
+            markers.zoomToShowLayer(singleMarker, () => singleMarker.openPopup());
         } else if (searchTerm && markersAddedToCluster.length > 1) {
-            // If multiple matched, adjust the zoom level so that matched ones fit.
             const groupForBounds = L.featureGroup(markersAddedToCluster);
-            if (groupForBounds.getLayers().length > 0) { // Make sure there is a valid layer
+            if (groupForBounds.getLayers().length > 0) {
                  map.fitBounds(groupForBounds.getBounds(), { padding: [50, 50] });
             }
         }
     }
 
+    function renderStoreList() {
+        storeListViewContainer.innerHTML = ''; // Clear previous list
+        const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+        if (allMcDonaldsLocations.length === 0) {
+            storeListViewContainer.innerHTML = '<p style="text-align:center; padding: 20px;">店舗データがありません。</p>';
+            return;
+        }
+
+        let filteredLocations = allMcDonaldsLocations;
+        if (searchTerm) {
+            filteredLocations = allMcDonaldsLocations.filter(mcdo =>
+                mcdo.name.toLowerCase().includes(searchTerm) ||
+                (mcdo.address && mcdo.address.toLowerCase().includes(searchTerm))
+            );
+        }
+
+        const ul = document.createElement('ul');
+        ul.className = 'store-items-list';
+
+        let storesToListCount = 0;
+        filteredLocations.forEach(mcdo => {
+            const isVisited = visitedMcDonaldsIds.has(mcdo.id);
+            if (!showUnvisited && !isVisited) return;
+            storesToListCount++;
+
+            const li = document.createElement('li');
+            li.className = 'store-item' + (isVisited ? ' visited' : '');
+            li.dataset.storeId = mcdo.id;
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'store-item-name';
+            nameDiv.textContent = mcdo.name;
+            li.appendChild(nameDiv);
+
+            const addressDiv = document.createElement('div');
+            addressDiv.className = 'store-item-address';
+            addressDiv.textContent = mcdo.address || '住所情報なし';
+            li.appendChild(addressDiv);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'store-item-actions';
+
+            const visitButton = document.createElement('button');
+            visitButton.textContent = isVisited ? '訪問記録を取り消す' : 'この店舗を訪問済みにする！';
+            visitButton.onclick = (e) => {
+                e.stopPropagation(); // Prevent li click if any
+                isVisited ? window.markAsUnvisited(mcdo.id) : window.markAsVisited(mcdo.id);
+            };
+            actionsDiv.appendChild(visitButton);
+
+            const showOnMapButton = document.createElement('button');
+            showOnMapButton.textContent = '地図で表示';
+            showOnMapButton.className = 'show-on-map-button';
+            showOnMapButton.onclick = (e) => {
+                e.stopPropagation();
+                switchToMapView();
+                setTimeout(() => { // Ensure map is visible and markers might be ready
+                    const targetMarker = findMarkerById(mcdo.id);
+                    if (targetMarker) {
+                        markers.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
+                    } else {
+                         // Fallback if marker not immediately found (e.g. after heavy filtering)
+                        map.setView([parseFloat(mcdo.lat), parseFloat(mcdo.lng)], 16); // Zoom closer
+                        // Try to render markers again to ensure the specific one is there
+                        renderMarkers();
+                        // Attempt to find and open popup again after re-render
+                        const refreshedMarker = findMarkerById(mcdo.id);
+                        if(refreshedMarker) {
+                            refreshedMarker.openPopup();
+                        }
+                    }
+                }, 100);
+            };
+            actionsDiv.appendChild(showOnMapButton);
+            li.appendChild(actionsDiv);
+            ul.appendChild(li);
+        });
+
+        if (storesToListCount === 0) {
+            storeListViewContainer.innerHTML = searchTerm ?
+                '<p style="text-align:center; padding: 20px;">検索条件に一致する店舗はありません。</p>' :
+                '<p style="text-align:center; padding: 20px;">表示する店舗はありません。</p>';
+        } else {
+            storeListViewContainer.appendChild(ul);
+        }
+    }
+
+    function updateUI() {
+        if (currentView === 'map') {
+            renderMarkers();
+        } else {
+            renderStoreList();
+        }
+        updateVisitedCount();
+    }
+
     window.markAsVisited = function(mcdoId) {
         visitedMcDonaldsIds.add(String(mcdoId));
         saveVisitedStores();
-        renderMarkers();
-        map.closePopup();
+        updateUI(); // Update current view and count
+        if (currentView === 'map') map.closePopup();
     }
 
     window.markAsUnvisited = function(mcdoId) {
         visitedMcDonaldsIds.delete(String(mcdoId));
         saveVisitedStores();
-        renderMarkers();
-        map.closePopup();
+        updateUI(); // Update current view and count
+        if (currentView === 'map') map.closePopup();
     }
 
     function eraseAllData() {
@@ -178,11 +275,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (confirmed) {
             visitedMcDonaldsIds.clear();
             saveVisitedStores();
-            renderMarkers();
+            updateUI(); // Update current view and count
             if (sideMenu) sideMenu.classList.remove('open');
             alert("全ての訪問データが消去されました。");
         }
     }
+
+    function switchToMapView() {
+        currentView = 'map';
+        mapViewContainer.style.display = 'block';
+        storeListViewContainer.style.display = 'none';
+        mapViewButton.classList.add('active');
+        listViewButton.classList.remove('active');
+        map.invalidateSize(); // VERY IMPORTANT for Leaflet
+        updateUI();
+    }
+
+    function switchToListView() {
+        currentView = 'list';
+        mapViewContainer.style.display = 'none';
+        storeListViewContainer.style.display = 'block';
+        mapViewButton.classList.remove('active');
+        listViewButton.classList.add('active');
+        updateUI();
+    }
+
+    // --- Event Listeners ---
+    if (mapViewButton) mapViewButton.addEventListener('click', switchToMapView);
+    if (listViewButton) listViewButton.addEventListener('click', switchToListView);
+
+    if (showUnvisitedCheckbox) showUnvisitedCheckbox.addEventListener('change', updateUI);
+    if (searchInput) searchInput.addEventListener('input', () => {
+        // Debounce search input slightly to avoid too frequent rendering on fast typing
+        // For simplicity, not adding debounce here, but consider for performance with large lists.
+        updateUI();
+    });
+
+    if (hamburgerButton) {
+        hamburgerButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (sideMenu) sideMenu.classList.toggle('open');
+        });
+    }
+
+    if (eraseDataButton) { eraseDataButton.addEventListener('click', eraseAllData); }
 
     function exportVisitedData() {
         const dataToExport = Array.from(visitedMcDonaldsIds);
@@ -201,7 +337,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sideMenu) sideMenu.classList.remove('open');
         alert("訪問データがエクスポートされました。ダウンロードフォルダを確認してください。");
     }
-
     function triggerImportFile() {
         if (importFileInput) importFileInput.click();
         if (sideMenu) sideMenu.classList.remove('open');
@@ -237,8 +372,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         console.warn("Skipping invalid ID during import:", id);
                     }
                 });
-                saveVisitedStores();
-                renderMarkers();
+                saveVisitedStores(); // save first
+                updateUI();          // then update UI which includes count
                 alert(`${importedData.length} 件のIDがファイルから読み込まれ、${newStoresAddedCount} 件の新しい店舗が訪問記録に追加されました。`);
             } catch (err) {
                 console.error("Error importing data:", err);
@@ -255,47 +390,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.readAsText(file);
     }
 
-    // --- Event Listeners ---
-    if (showUnvisitedCheckbox) {
-        showUnvisitedCheckbox.addEventListener('change', renderMarkers);
-    }
-    if (hamburgerButton) {
-        hamburgerButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            if (sideMenu) sideMenu.classList.toggle('open');
-        });
-    }
-    if (eraseDataButton) {
-        eraseDataButton.addEventListener('click', eraseAllData);
-    }
-    if (exportDataButton) {
-        exportDataButton.addEventListener('click', exportVisitedData);
-    }
-    if (importDataButton) {
-        importDataButton.addEventListener('click', triggerImportFile);
-    }
-    if (importFileInput) {
-        importFileInput.addEventListener('change', handleImportFile);
-    }
-    if (searchInput) { // New event listener for search
-        searchInput.addEventListener('input', () => { // 'input' event triggers on any change, including clearing
-            renderMarkers();
-        });
-    }
+    if (exportDataButton) exportDataButton.addEventListener('click', exportVisitedData);
+    if (importDataButton) importDataButton.addEventListener('click', triggerImportFile);
+    if (importFileInput) importFileInput.addEventListener('change', handleImportFile);
 
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', (event) => { /* ... for closing side menu ... */
         if (sideMenu && hamburgerButton && !sideMenu.contains(event.target) && !hamburgerButton.contains(event.target)) {
             sideMenu.classList.remove('open');
         }
     });
 
+
     // --- Initial Load ---
     async function initializeApp() {
-        loadVisitedStores();
-        await loadStoreData();
-        // map.addLayer(markers); // markerClusterGroupはrenderMarkers内で必要に応じて追加される
-        renderMarkers();
-        updateVisitedCount();
+        loadVisitedStores(); // Load visited history first
+        await loadStoreData(); // Then load all store locations
+
+        // Set default view (e.g., map)
+        switchToMapView(); // This will call updateUI which calls renderMarkers
+        // No need to call renderMarkers or updateVisitedCount explicitly here
+        // as switchToMapView and subsequently updateUI handles it.
     }
 
     initializeApp();

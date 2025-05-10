@@ -192,3 +192,101 @@ footer a:hover {
     border-radius: 5px;
     box-sizing: border-box; /* パディングとボーダーを幅に含める */
 }
+
+.view-controls {
+    text-align: center;
+    margin: 15px 0;
+}
+
+.view-toggle-button {
+    padding: 8px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    margin: 0 5px;
+    border-radius: 4px;
+}
+
+.view-toggle-button.active {
+    background-color: #007bff; /* Or McDonald's red: #c00; */
+    color: white;
+    border-color: #007bff; /* Or McDonald's red */
+}
+
+#storeListViewContainer {
+    max-width: 800px; /* Adjust as needed */
+    margin: 0 auto 20px auto;
+    padding: 10px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    max-height: calc(100vh - 250px); /* Adjust based on other elements */
+    overflow-y: auto;
+}
+
+.store-items-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.store-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.store-item:last-child {
+    border-bottom: none;
+}
+
+.store-item.visited {
+    background-color: #e6ffed; /* Light green for visited items */
+}
+
+.store-item-name {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.store-item-address {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.store-item-actions button {
+    background-color: #ffc72c; /* McDonald's Yellow */
+    color: #333;
+    border: none;
+    padding: 6px 10px;
+    font-size: 0.9em;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 8px;
+    font-weight: normal; /* Override bold from popup buttons if needed */
+}
+.store-item-actions button.show-on-map-button {
+    background-color: #e0e0e0; /* A different color for "Show on map" */
+}
+
+.store-item-actions button:hover {
+    opacity: 0.8;
+}
+
+/* Adjust map height if needed when list is also possible */
+#mapViewContainer {
+    /* Styles if needed, currently map takes height directly */
+}
+#map {
+    height: calc(100vh - 280px); /* Example adjustment, fine-tune this */
+    min-height: 350px;
+    /* other map styles */
+}
+
+
+/* Ensure only active view's content area is visible */
+#mapViewContainer, #storeListViewContainer {
+    /* common styles for view containers if any */
+}
