@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sideMenu = document.getElementById('sideMenu');
     const eraseDataButton = document.getElementById('eraseDataButton');
     const showUnvisitedCheckbox = document.getElementById('showUnvisitedCheckbox');
+    const searchInput = document.getElementById('searchInput');
+    const exportDataButton = document.getElementById('exportDataButton');
+    const importDataButton = document.getElementById('importDataButton');
+    const importFileInput = document.getElementById('importFileInput');
 
     // --- Map Initialization ---
     const map = L.map('map').setView(initialCenter, initialZoom);
@@ -52,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 name: store.name,
                 lat: store.latitude,
                 lng: store.longitude,
-                address: store.address
+                address: store.address || ""
             }));
             console.log(`${allMcDonaldsLocations.length} stores loaded from API: ${jsonStoreDataUrl}`);
         } catch (error) {
@@ -81,15 +85,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderMarkers() {
-        markers.clearLayers(); // Clear layers from the markerClusterGroup
+        markers.clearLayers();
         const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
         if (allMcDonaldsLocations.length === 0) {
-            console.warn("No McDonald's locations loaded to render. If you just started, data might still be fetching from the API.");
+            console.warn("No McDonald's locations loaded to render.");
             return;
         }
 
-        allMcDonaldsLocations.forEach(mcdo => {
+        let filteredLocations = allMcDonaldsLocations;
+
+        if (searchTerm) {
+            filteredLocations = allMcDonaldsLocations.filter(mcdo =>
+                mcdo.name.toLowerCase().includes(searchTerm) ||
+                (mcdo.address && mcdo.address.toLowerCase().includes(searchTerm))
+            );
+        }
+
+        let markersAddedToCluster = [];
+
+        filteredLocations.forEach(mcdo => {
             const isVisited = visitedMcDonaldsIds.has(mcdo.id);
 
             if (!showUnvisited && !isVisited) {
@@ -120,12 +136,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 popupContent += `<br><button onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
             }
             marker.bindPopup(popupContent);
-            markers.addLayer(marker); // Add marker to the markerClusterGroup
+            markers.addLayer(marker);
+            markersAddedToCluster.push(marker);
         });
         // Ensure the cluster group is added to the map.
         // If it's already added, this won't cause issues.
         // If it's the first render, it will add it.
         map.addLayer(markers);
+
+        if (searchTerm && markersAddedToCluster.length === 1) {
+            // Only one store. Zoom into the store and open the pop-up
+            const singleMarker = markersAddedToCluster[0];
+            markers.zoomToShowLayer(singleMarker, () => {
+                singleMarker.openPopup();
+            });
+        } else if (searchTerm && markersAddedToCluster.length > 1) {
+            // If multiple matched, adjust the zoom level so that matched ones fit.
+            const groupForBounds = L.featureGroup(markersAddedToCluster);
+            if (groupForBounds.getLayers().length > 0) { // Make sure there is a valid layer
+                 map.fitBounds(groupForBounds.getBounds(), { padding: [50, 50] });
+            }
+        }
     }
 
     window.markAsVisited = function(mcdoId) {
@@ -153,20 +184,103 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function exportVisitedData() {
+        const dataToExport = Array.from(visitedMcDonaldsIds);
+        const jsonString = JSON.stringify(dataToExport, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const date = new Date();
+        const dateString = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+        a.download = `mcdonalds_visited_jp_${dateString}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (sideMenu) sideMenu.classList.remove('open');
+        alert("訪問データがエクスポートされました。ダウンロードフォルダを確認してください。");
+    }
+
+    function triggerImportFile() {
+        if (importFileInput) importFileInput.click();
+        if (sideMenu) sideMenu.classList.remove('open');
+    }
+
+    function handleImportFile(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            console.log("No file selected for import.");
+            return;
+        }
+        if (file.type !== "application/json") {
+            alert("無効なファイル形式です。JSONファイルを選択してください。");
+            if (importFileInput) importFileInput.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!Array.isArray(importedData)) {
+                    throw new Error("Imported JSON is not an array.");
+                }
+                let newStoresAddedCount = 0;
+                importedData.forEach(id => {
+                    if (typeof id === 'string' || typeof id === 'number') {
+                        const storeIdStr = String(id);
+                        if (!visitedMcDonaldsIds.has(storeIdStr)) {
+                            visitedMcDonaldsIds.add(storeIdStr);
+                            newStoresAddedCount++;
+                        }
+                    } else {
+                        console.warn("Skipping invalid ID during import:", id);
+                    }
+                });
+                saveVisitedStores();
+                renderMarkers();
+                alert(`${importedData.length} 件のIDがファイルから読み込まれ、${newStoresAddedCount} 件の新しい店舗が訪問記録に追加されました。`);
+            } catch (err) {
+                console.error("Error importing data:", err);
+                alert("データのインポート中にエラーが発生しました。ファイルが正しい形式（訪問した店舗IDの配列）であることを確認してください。");
+            } finally {
+                if (importFileInput) importFileInput.value = '';
+            }
+        };
+        reader.onerror = () => {
+            console.error("Error reading file for import.");
+            alert("ファイルの読み込み中にエラーが発生しました。");
+            if (importFileInput) importFileInput.value = '';
+        };
+        reader.readAsText(file);
+    }
+
     // --- Event Listeners ---
     if (showUnvisitedCheckbox) {
         showUnvisitedCheckbox.addEventListener('change', renderMarkers);
     }
-
     if (hamburgerButton) {
         hamburgerButton.addEventListener('click', (event) => {
             event.stopPropagation();
             if (sideMenu) sideMenu.classList.toggle('open');
         });
     }
-
     if (eraseDataButton) {
         eraseDataButton.addEventListener('click', eraseAllData);
+    }
+    if (exportDataButton) {
+        exportDataButton.addEventListener('click', exportVisitedData);
+    }
+    if (importDataButton) {
+        importDataButton.addEventListener('click', triggerImportFile);
+    }
+    if (importFileInput) {
+        importFileInput.addEventListener('change', handleImportFile);
+    }
+    if (searchInput) { // New event listener for search
+        searchInput.addEventListener('input', () => { // 'input' event triggers on any change, including clearing
+            renderMarkers();
+        });
     }
 
     document.addEventListener('click', (event) => {
@@ -179,8 +293,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initializeApp() {
         loadVisitedStores();
         await loadStoreData();
-        map.addLayer(markers); // Add the marker cluster group to the map
-        renderMarkers();       // Initial rendering of markers into the cluster group
+        // map.addLayer(markers); // markerClusterGroupはrenderMarkers内で必要に応じて追加される
+        renderMarkers();
         updateVisitedCount();
     }
 

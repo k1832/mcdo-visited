@@ -176,3 +176,19 @@ footer a:hover {
     margin-left: 4px; /* Space between "on" and the icon */
     vertical-align: middle; /* Helps align with text if not using flex on parent */
 }
+
+.search-container {
+    text-align: center;
+    margin: 15px auto; /* 上下のマージンを調整 */
+    padding: 0 20px; /* 左右のパディング */
+    max-width: 600px; /* 検索バーの最大幅 */
+}
+
+#searchInput {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* パディングとボーダーを幅に含める */
+}
