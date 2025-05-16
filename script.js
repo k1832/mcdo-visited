@@ -401,15 +401,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
 
-    // --- Initial Load ---
     async function initializeApp() {
         loadVisitedStores(); // Load visited history first
         await loadStoreData(); // Then load all store locations
 
-        // Set default view (e.g., map)
-        switchToMapView(); // This will call updateUI which calls renderMarkers
-        // No need to call renderMarkers or updateVisitedCount explicitly here
-        // as switchToMapView and subsequently updateUI handles it.
+        // --- Start of synchronization logic with user notification ---
+        let removedItemsCount = 0; // To count how many items are removed
+
+        // IMPORTANT: API call may fail for some reason and the response list
+        // may be empty. Only check the visited IDs when both of the lists
+        // are not empty.
+        if (visitedMcDonaldsIds.size > 0 && allMcDonaldsLocations.length > 0) {
+            const currentStoreIdsFromAPI = new Set(allMcDonaldsLocations.map(store => store.id));
+
+            // It's safer to collect IDs to remove first if modifying the Set
+            // you are iterating over with forEach, or use a different iteration method.
+            // However, for `Set.forEach`, direct deletion is generally fine.
+            visitedMcDonaldsIds.forEach(savedId => {
+                if (!currentStoreIdsFromAPI.has(savedId)) {
+                    visitedMcDonaldsIds.delete(savedId);
+                    console.log(`Removed outdated store ID: ${savedId} from local storage.`);
+                    ++removedItemsCount;
+                }
+            });
+
+            if (removedItemsCount) {
+                saveVisitedStores(); // Save the updated set to local storage
+            }
+        }
+
+        switchToMapView(); // This will call updateUI, which includes updateVisitedCount
+
+        // --- Notify user after initial UI is ready or updated ---
+        if (removedItemsCount) {
+            // Using setTimeout to ensure this alert doesn't block rendering and appears after the page is more settled.
+            setTimeout(() => {
+                alert(`${removedItemsCount} 件の訪問記録が、店舗リストの更新（例：店舗の閉鎖やID変更など）に伴い、あなたの訪問リストから自動的に削除されました(T_T)`);
+            }, 100); // A small delay can improve UX.
+        }
     }
 
     initializeApp();
