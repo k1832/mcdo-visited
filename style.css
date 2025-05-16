@@ -285,8 +285,25 @@ footer a:hover {
     /* other map styles */
 }
 
+/*
+ * Button to mark a store as visited.
+ * !important is needed to overwrite the default color by leaflet.js
+ */
+.button-mark-visited {
+    background-color: #28a745 !important; /* A pleasant green */
+    color: white;
+}
 
-/* Ensure only active view's content area is visible */
-#mapViewContainer, #storeListViewContainer {
-    /* common styles for view containers if any */
+.button-mark-visited:hover {
+    background-color: #218838 !important; /* A darker green for hover */
+}
+
+/* Button to mark a store as unvisited (remove visit record) */
+.button-mark-unvisited {
+    background-color: #dc3545 !important; /* A clear red */
+    color: white;
+}
+
+.button-mark-unvisited:hover {
+    background-color: #c82333 !important; /* A darker red for hover */
 }

@@ -24,6 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const storeListViewContainer = document.getElementById('storeListViewContainer');
     const mapElement = document.getElementById('map'); // The actual map div
 
+    const classNameButtonMarkVisited = "button-mark-visited";
+    const classNameButtonMarkUnvisited = "button-mark-unvisited";
+
+
     // --- Map Initialization ---
     const map = L.map(mapElement).setView(initialCenter, initialZoom); // Initialize map on the specific div
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -135,8 +139,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             let popupContent = `<b>${mcdo.name}</b><br>`;
             if (mcdo.address) popupContent += `${mcdo.address}<br><br>`;
             popupContent += isVisited ?
-                `この店舗は訪問済みです！<br><button onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>` :
-                `この店舗はまだ未訪問です。<br><button onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
+                `この店舗は訪問済みです！<br><button class="${classNameButtonMarkUnvisited}" onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>` :
+                `この店舗はまだ未訪問です。<br><button class="${classNameButtonMarkVisited}" onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
             marker.bindPopup(popupContent);
             markers.addLayer(marker);
             markersAddedToCluster.push(marker);
@@ -204,6 +208,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const visitButton = document.createElement('button');
             visitButton.textContent = isVisited ? '訪問記録を取り消す' : 'この店舗を訪問済みにする！';
+
+            if (isVisited) {
+                visitButton.classList.add(classNameButtonMarkUnvisited);
+            } else {
+                visitButton.classList.add(classNameButtonMarkVisited);
+            }
+
             visitButton.onclick = (e) => {
                 e.stopPropagation(); // Prevent li click if any
                 isVisited ? window.markAsUnvisited(mcdo.id) : window.markAsVisited(mcdo.id);
