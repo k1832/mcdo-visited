@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (removedItemsCount) {
             // Using setTimeout to ensure this alert doesn't block rendering and appears after the page is more settled.
             setTimeout(() => {
-                alert(`${removedItemsCount} 件の訪問記録が、店舗リストの更新（例：店舗の閉鎖やID変更など）に伴い、あなたの訪問リストから自動的に削除されました(T_T)`);
+                alert(`${removedItemsCount} 件の訪問記録が、店舗リストの更新（例：店舗の閉鎖・移転や店名変更など）に伴い、あなたの訪問リストから自動的に削除されました(T_T)`);
             }, 100); // A small delay can improve UX.
         }
     }
