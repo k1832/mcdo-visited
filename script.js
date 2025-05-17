@@ -345,13 +345,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             // When `event.isComposing` is true, the text is not finalized.
             // See https://dninomiya.github.io/form-guide/stop-enter-submit
             if (event.key === 'Enter' && !event.isComposing) {
+                event.preventDefault();
                 updateUI();
+                setTimeout(() => {
+                    searchInput.blur(); // Close the virtual keyboard
+                }, 50);
             }
         });
     }
 
     if (searchButton) searchButton.addEventListener('click', () => {
         updateUI();
+        if (searchInput) {
+            setTimeout(() => {
+                searchInput.blur(); // Close the virtual keyboard
+            }, 50);
+        }
     });
 
     if (hamburgerButton) {
