@@ -1,3 +1,11 @@
+function trackEvent(eventName, eventParams = {}) {
+    if (typeof gtag === 'function') {
+        gtag('event', eventName, eventParams);
+    } else {
+        console.warn('gtag function not found. Analytics event not sent.');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // --- Configuration ---
     const initialCenter = [35.6895, 139.6917]; // Tokyo
@@ -24,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const storeListViewContainer = document.getElementById('storeListViewContainer');
     const mapElement = document.getElementById('map'); // The actual map div
     const searchButton = document.getElementById('searchButton');
+    const footerLink = document.querySelector('footer a[href^="https://x.com/k1832_"]');
 
     const classNameButtonMarkVisited = "button-mark-visited";
     const classNameButtonMarkUnvisited = "button-mark-unvisited";
@@ -119,7 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         marker.setPopupContent(popupContent);
     }
 
-    function renderMarkers(storeToFocus=null) {
+    function renderMarkers(storeToFocus = null) {
         markers.clearLayers();
         const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -234,8 +243,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             visitButton.onclick = (e) => {
-                e.stopPropagation(); // Prevent li click if any
-                isVisited ? window.markAsUnvisited(mcdo.id) : window.markAsVisited(mcdo.id);
+                e.stopPropagation();
+                isVisited ? window.markAsUnvisited(mcdo.id, 'list_button') : window.markAsVisited(mcdo.id, 'list_button');
             };
             actionsDiv.appendChild(visitButton);
 
@@ -244,6 +253,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             showOnMapButton.className = 'show-on-map-button';
             showOnMapButton.onclick = (e) => {
                 e.stopPropagation();
+                trackEvent('show_on_map', {
+                    store_id: mcdo.id,
+                    store_name: mcdo.name
+                });
                 switchToMapView(mcdo);
             };
             actionsDiv.appendChild(showOnMapButton);
@@ -260,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function updateUI(storeToFocus=null) {
+    function updateUI(storeToFocus = null) {
         if (currentView === 'map') {
             renderMarkers(storeToFocus);
         } else {
@@ -269,14 +282,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateVisitedCount();
     }
 
-    window.markAsVisited = function(mcdoId) {
+    window.markAsVisited = function (mcdoId, interactionType = 'unknown') {
         visitedMcDonaldsIds.add(String(mcdoId));
         saveVisitedStores();
         updateVisitedCount();
 
-        // Don't use renderMarkers as it resets the zoom level and stuff
+        const mcdo = allMcDonaldsLocations.find(s => s.id === mcdoId);
+        trackEvent('mark_store_status', {
+            status: 'visited',
+            store_id: mcdoId,
+            store_name: mcdo ? mcdo.name : 'N/A',
+            interaction_type: interactionType
+        });
+
         if (currentView === 'map') {
-            const mcdo = allMcDonaldsLocations.find(s => s.id === mcdoId);
             const marker = findMarkerById(mcdoId);
             if (marker && mcdo) {
                 updateMarker(marker, mcdo, true);
@@ -287,14 +306,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    window.markAsUnvisited = function(mcdoId) {
+    window.markAsUnvisited = function (mcdoId, interactionType = 'unknown') {
         visitedMcDonaldsIds.delete(String(mcdoId));
         saveVisitedStores();
         updateVisitedCount();
 
-        // Don't use renderMarkers as it resets the zoom level and stuff
+        const mcdo = allMcDonaldsLocations.find(s => s.id === mcdoId);
+        trackEvent('mark_store_status', {
+            status: 'unvisited',
+            store_id: mcdoId,
+            store_name: mcdo ? mcdo.name : 'N/A',
+            interaction_type: interactionType
+        });
+
         if (currentView === 'map') {
-            const mcdo = allMcDonaldsLocations.find(s => s.id === mcdoId);
+            // Don't use renderMarkers as it resets the zoom level and stuff
             const marker = findMarkerById(mcdoId);
             if (marker && mcdo) {
                 updateMarker(marker, mcdo, false);
@@ -310,13 +336,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (confirmed) {
             visitedMcDonaldsIds.clear();
             saveVisitedStores();
-            updateUI(); // Update current view and count
+            updateUI();
             if (sideMenu) sideMenu.classList.remove('open');
             alert("全ての訪問データが消去されました。");
+            trackEvent('data_management', { action_type: 'erase_data_confirmed' });
+        } else {
+            trackEvent('data_management', { action_type: 'erase_data_cancelled' });
         }
     }
 
-    function switchToMapView(storeToFocus=null) {
+    function switchToMapView(storeToFocus = null) {
+        if (currentView !== 'map') {
+            trackEvent('view_change', { view_type: 'map' });
+        }
         currentView = 'map';
         mapViewContainer.style.display = 'block';
         storeListViewContainer.style.display = 'none';
@@ -327,6 +359,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function switchToListView() {
+        if (currentView !== 'list') {
+            trackEvent('view_change', { view_type: 'list' });
+        }
         currentView = 'list';
         mapViewContainer.style.display = 'none';
         storeListViewContainer.style.display = 'block';
@@ -335,17 +370,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateUI();
     }
 
-    // --- Event Listeners ---
+    /* --- Event Listeners --- */
     if (mapViewButton) mapViewButton.addEventListener('click', switchToMapView);
     if (listViewButton) listViewButton.addEventListener('click', switchToListView);
 
     if (showUnvisitedCheckbox) showUnvisitedCheckbox.addEventListener('change', updateUI);
     if (searchInput) {
         searchInput.addEventListener('keydown', (event) => {
-            // When `event.isComposing` is true, the text is not finalized.
-            // See https://dninomiya.github.io/form-guide/stop-enter-submit
             if (event.key === 'Enter' && !event.isComposing) {
                 event.preventDefault();
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                let resultsCount = 0;
+                if (searchTerm) {
+                    const filteredLocations = allMcDonaldsLocations.filter(mcdo =>
+                        mcdo.name.toLowerCase().includes(searchTerm) ||
+                        (mcdo.address && mcdo.address.toLowerCase().includes(searchTerm))
+                    );
+                    resultsCount = filteredLocations.length;
+                } else {
+                    resultsCount = allMcDonaldsLocations.length; // Or based on current filters
+                }
+                trackEvent('search_store', {
+                    search_term: searchTerm,
+                    results_count: resultsCount
+                });
                 updateUI();
                 setTimeout(() => {
                     searchInput.blur(); // Close the virtual keyboard
@@ -354,14 +402,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (searchButton) searchButton.addEventListener('click', () => {
-        updateUI();
-        if (searchInput) {
-            setTimeout(() => {
-                searchInput.blur(); // Close the virtual keyboard
-            }, 50);
-        }
-    });
+    if (searchButton) {
+        searchButton.addEventListener('click', () => {
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            trackEvent('search_store', { search_term: searchTerm });
+            updateUI();
+            if (searchInput) {
+                setTimeout(() => {
+                    searchInput.blur(); // Close the virtual keyboard
+                }, 50);
+            }
+        });
+    }
 
     if (hamburgerButton) {
         hamburgerButton.addEventListener('click', (event) => {
@@ -371,6 +423,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (eraseDataButton) { eraseDataButton.addEventListener('click', eraseAllData); }
+
+    if (footerLink) {
+        footerLink.addEventListener('click', () => {
+            trackEvent('click_external_link', {
+                link_url: footerLink.href,
+                link_location: 'footer_x_profile'
+            });
+        });
+    }
+    /* --- Event Listeners --- */
 
     function exportVisitedData() {
         const dataToExport = Array.from(visitedMcDonaldsIds);
@@ -387,11 +449,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         if (sideMenu) sideMenu.classList.remove('open');
+        trackEvent('data_management', { action_type: 'export_data' });
         alert("訪問データがエクスポートされました。ダウンロードフォルダを確認してください。");
     }
     function triggerImportFile() {
         if (importFileInput) importFileInput.click();
         if (sideMenu) sideMenu.classList.remove('open');
+        trackEvent('data_management', { action_type: 'import_data' });
     }
 
     function handleImportFile(event) {
@@ -478,6 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (removedItemsCount) {
+                trackEvent('outdated_data_removed', { removed_count: removedItemsCount });
                 saveVisitedStores(); // Save the updated set to local storage
             }
         }
@@ -494,4 +559,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initializeApp();
+
 });
