@@ -103,6 +103,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return foundMarker;
     }
 
+    function getPopupContent(mcdo, isVisited) {
+        let popupContent = `<b>${mcdo.name}</b><br>`;
+        if (mcdo.address) popupContent += `${mcdo.address}<br><br>`;
+        popupContent += isVisited ?
+            `この店舗は訪問済みです！<br><button class="${classNameButtonMarkUnvisited}" onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>` :
+            `この店舗はまだ未訪問です。<br><button class="${classNameButtonMarkVisited}" onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
+        return popupContent
+    }
+
+    function updateMarker(marker, mcdo, isVisited) {
+        marker.setIcon(isVisited ? visitedIcon : unvisitedIcon);
+        const popupContent = getPopupContent(mcdo, isVisited);
+        marker.setPopupContent(popupContent);
+    }
 
     function renderMarkers() {
         markers.clearLayers();
@@ -127,7 +141,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isVisited = visitedMcDonaldsIds.has(mcdo.id);
             if (!showUnvisited && !isVisited) return;
 
-            const markerIcon = isVisited ? visitedIcon : unvisitedIcon;
             const lat = parseFloat(mcdo.lat);
             const lng = parseFloat(mcdo.lng);
             if (isNaN(lat) || isNaN(lng)) {
@@ -135,12 +148,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            const popupContent = getPopupContent(mcdo);
+            const markerIcon = isVisited ? visitedIcon : unvisitedIcon;
             const marker = L.marker([lat, lng], { icon: markerIcon, mcdoId: mcdo.id });
-            let popupContent = `<b>${mcdo.name}</b><br>`;
-            if (mcdo.address) popupContent += `${mcdo.address}<br><br>`;
-            popupContent += isVisited ?
-                `この店舗は訪問済みです！<br><button class="${classNameButtonMarkUnvisited}" onclick="markAsUnvisited('${mcdo.id}')">訪問記録を取り消す</button>` :
-                `この店舗はまだ未訪問です。<br><button class="${classNameButtonMarkVisited}" onclick="markAsVisited('${mcdo.id}')">この店舗を訪問済みにする！</button>`;
             marker.bindPopup(popupContent);
             markers.addLayer(marker);
             markersAddedToCluster.push(marker);
@@ -150,14 +160,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             map.addLayer(markers);
         }
 
-
         if (searchTerm && markersAddedToCluster.length === 1) {
             const singleMarker = markersAddedToCluster[0];
             markers.zoomToShowLayer(singleMarker, () => singleMarker.openPopup());
         } else if (searchTerm && markersAddedToCluster.length > 1) {
             const groupForBounds = L.featureGroup(markersAddedToCluster);
             if (groupForBounds.getLayers().length > 0) {
-                 map.fitBounds(groupForBounds.getBounds(), { padding: [50, 50] });
+                map.fitBounds(groupForBounds.getBounds(), { padding: [50, 50] });
             }
         }
     }
@@ -270,15 +279,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.markAsVisited = function(mcdoId) {
         visitedMcDonaldsIds.add(String(mcdoId));
         saveVisitedStores();
-        updateUI(); // Update current view and count
-        if (currentView === 'map') map.closePopup();
+        updateVisitedCount();
+
+        // Don't use renderMarkers as it resets the zoom level and stuff
+        if (currentView === 'map') {
+            const mcdo = allMcDonaldsLocations.find(s => s.id === mcdoId);
+            const marker = findMarkerById(mcdoId);
+            if (marker && mcdo) {
+                updateMarker(marker, mcdo, true);
+            }
+            map.closePopup();
+        } else {
+            renderStoreList();
+        }
     }
 
     window.markAsUnvisited = function(mcdoId) {
         visitedMcDonaldsIds.delete(String(mcdoId));
         saveVisitedStores();
-        updateUI(); // Update current view and count
-        if (currentView === 'map') map.closePopup();
+        updateVisitedCount();
+
+        // Don't use renderMarkers as it resets the zoom level and stuff
+        if (currentView === 'map') {
+            const mcdo = allMcDonaldsLocations.find(s => s.id === mcdoId);
+            const marker = findMarkerById(mcdoId);
+            if (marker && mcdo) {
+                updateMarker(marker, mcdo, false);
+            }
+            map.closePopup();
+        } else {
+            renderStoreList();
+        }
     }
 
     function eraseAllData() {
