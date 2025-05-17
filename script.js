@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mapViewContainer = document.getElementById('mapViewContainer');
     const storeListViewContainer = document.getElementById('storeListViewContainer');
     const mapElement = document.getElementById('map'); // The actual map div
+    const searchButton = document.getElementById('searchButton');
 
     const classNameButtonMarkVisited = "button-mark-visited";
     const classNameButtonMarkUnvisited = "button-mark-unvisited";
@@ -118,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         marker.setPopupContent(popupContent);
     }
 
-    function renderMarkers(storeToFocus = null) {
+    function renderMarkers(storeToFocus=null) {
         markers.clearLayers();
         const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -259,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function updateUI(storeToFocus = null) {
+    function updateUI(storeToFocus=null) {
         if (currentView === 'map') {
             renderMarkers(storeToFocus);
         } else {
@@ -268,7 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateVisitedCount();
     }
 
-    window.markAsVisited = function (mcdoId) {
+    window.markAsVisited = function(mcdoId) {
         visitedMcDonaldsIds.add(String(mcdoId));
         saveVisitedStores();
         updateVisitedCount();
@@ -286,7 +287,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    window.markAsUnvisited = function (mcdoId) {
+    window.markAsUnvisited = function(mcdoId) {
         visitedMcDonaldsIds.delete(String(mcdoId));
         saveVisitedStores();
         updateVisitedCount();
@@ -315,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function switchToMapView(storeToFocus = null) {
+    function switchToMapView(storeToFocus=null) {
         currentView = 'map';
         mapViewContainer.style.display = 'block';
         storeListViewContainer.style.display = 'none';
@@ -339,9 +340,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (listViewButton) listViewButton.addEventListener('click', switchToListView);
 
     if (showUnvisitedCheckbox) showUnvisitedCheckbox.addEventListener('change', updateUI);
-    if (searchInput) searchInput.addEventListener('input', () => {
-        // Debounce search input slightly to avoid too frequent rendering on fast typing
-        // For simplicity, not adding debounce here, but consider for performance with large lists.
+    if (searchInput) {
+        searchInput.addEventListener('keydown', (event) => {
+            // When `event.isComposing` is true, the text is not finalized.
+            // See https://dninomiya.github.io/form-guide/stop-enter-submit
+            if (event.key === 'Enter' && !event.isComposing) {
+                updateUI();
+            }
+        });
+    }
+
+    if (searchButton) searchButton.addEventListener('click', () => {
         updateUI();
     });
 

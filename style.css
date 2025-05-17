@@ -178,6 +178,10 @@ footer a:hover {
 }
 
 .search-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     text-align: center;
     margin: 15px auto; /* 上下のマージンを調整 */
     padding: 0 20px; /* 左右のパディング */
@@ -185,12 +189,31 @@ footer a:hover {
 }
 
 #searchInput {
+    flex-grow: 1; /* Allow input to take available space */
     width: 100%;
     padding: 10px 15px;
     font-size: 1em;
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-sizing: border-box; /* パディングとボーダーを幅に含める */
+    box-sizing: border-box;
+    line-height: 1.2;
+}
+
+#searchButton {
+    padding: 10px 15px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    line-height: 1.2;
+}
+
+#searchButton:hover {
+    background-color: #e0e0e0;
 }
 
 .view-controls {
