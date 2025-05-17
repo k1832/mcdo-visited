@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         marker.setPopupContent(popupContent);
     }
 
-    function renderMarkers() {
+    function renderMarkers(storeToFocus=null) {
         markers.clearLayers();
         const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -160,7 +160,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             map.addLayer(markers);
         }
 
-        if (searchTerm && markersAddedToCluster.length === 1) {
+        if (storeToFocus) {
+            const targetMarker = findMarkerById(storeToFocus.id);
+            if (targetMarker) {
+                markers.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
+            }
+            // TODO(k1832): Handle an error where the target marker wasn't found
+        } else if (searchTerm && markersAddedToCluster.length === 1) {
             const singleMarker = markersAddedToCluster[0];
             markers.zoomToShowLayer(singleMarker, () => singleMarker.openPopup());
         } else if (searchTerm && markersAddedToCluster.length > 1) {
@@ -235,23 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             showOnMapButton.className = 'show-on-map-button';
             showOnMapButton.onclick = (e) => {
                 e.stopPropagation();
-                switchToMapView();
-                setTimeout(() => { // Ensure map is visible and markers might be ready
-                    const targetMarker = findMarkerById(mcdo.id);
-                    if (targetMarker) {
-                        markers.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
-                    } else {
-                         // Fallback if marker not immediately found (e.g. after heavy filtering)
-                        map.setView([parseFloat(mcdo.lat), parseFloat(mcdo.lng)], 16); // Zoom closer
-                        // Try to render markers again to ensure the specific one is there
-                        renderMarkers();
-                        // Attempt to find and open popup again after re-render
-                        const refreshedMarker = findMarkerById(mcdo.id);
-                        if(refreshedMarker) {
-                            refreshedMarker.openPopup();
-                        }
-                    }
-                }, 100);
+                switchToMapView(mcdo);
             };
             actionsDiv.appendChild(showOnMapButton);
             li.appendChild(actionsDiv);
@@ -267,9 +257,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function updateUI() {
+    function updateUI(storeToFocus=null) {
         if (currentView === 'map') {
-            renderMarkers();
+            renderMarkers(storeToFocus);
         } else {
             renderStoreList();
         }
@@ -323,14 +313,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function switchToMapView() {
+    function switchToMapView(storeToFocus=null) {
         currentView = 'map';
         mapViewContainer.style.display = 'block';
         storeListViewContainer.style.display = 'none';
         mapViewButton.classList.add('active');
         listViewButton.classList.remove('active');
         map.invalidateSize(); // VERY IMPORTANT for Leaflet
-        updateUI();
+        updateUI(storeToFocus);
     }
 
     function switchToListView() {
