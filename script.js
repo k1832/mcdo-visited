@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         marker.setPopupContent(popupContent);
     }
 
-    function renderMarkers(storeToFocus=null) {
+    function renderMarkers(storeToFocus = null) {
         markers.clearLayers();
         const showUnvisited = showUnvisitedCheckbox ? showUnvisitedCheckbox.checked : true;
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            const popupContent = getPopupContent(mcdo);
+            const popupContent = getPopupContent(mcdo, isVisited);
             const markerIcon = isVisited ? visitedIcon : unvisitedIcon;
             const marker = L.marker([lat, lng], { icon: markerIcon, mcdoId: mcdo.id });
             marker.bindPopup(popupContent);
@@ -164,8 +164,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const targetMarker = findMarkerById(storeToFocus.id);
             if (targetMarker) {
                 markers.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
+            } else {
+                console.warn(`Marker to focus (ID: ${storeToFocus.id}) not found by findMarkerById. Setting view to coordinates.`);
+                map.setView([parseFloat(storeToFocus.lat), parseFloat(storeToFocus.lng)], 16);
             }
-            // TODO(k1832): Handle an error where the target marker wasn't found
         } else if (searchTerm && markersAddedToCluster.length === 1) {
             const singleMarker = markersAddedToCluster[0];
             markers.zoomToShowLayer(singleMarker, () => singleMarker.openPopup());
@@ -257,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function updateUI(storeToFocus=null) {
+    function updateUI(storeToFocus = null) {
         if (currentView === 'map') {
             renderMarkers(storeToFocus);
         } else {
@@ -266,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateVisitedCount();
     }
 
-    window.markAsVisited = function(mcdoId) {
+    window.markAsVisited = function (mcdoId) {
         visitedMcDonaldsIds.add(String(mcdoId));
         saveVisitedStores();
         updateVisitedCount();
@@ -284,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    window.markAsUnvisited = function(mcdoId) {
+    window.markAsUnvisited = function (mcdoId) {
         visitedMcDonaldsIds.delete(String(mcdoId));
         saveVisitedStores();
         updateVisitedCount();
@@ -313,7 +315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function switchToMapView(storeToFocus=null) {
+    function switchToMapView(storeToFocus = null) {
         currentView = 'map';
         mapViewContainer.style.display = 'block';
         storeListViewContainer.style.display = 'none';
